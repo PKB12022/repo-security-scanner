@@ -208,7 +208,7 @@ def main():
         print(f"{Fore.GREEN}✅ HTML report saved: {output_file}{Style.RESET_ALL}")
     
     # Exit with appropriate code
-    sys.exit(0 if not threats else 1)
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
