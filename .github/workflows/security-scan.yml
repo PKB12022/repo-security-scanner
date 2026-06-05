@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    # Run security scan daily at 2 AM UTC
     - cron: '0 2 * * *'
 
 jobs:
@@ -70,58 +69,62 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('security-report.json', 'utf8'));
-            
-            const threatCount = report.threats.length;
-            const riskScore = report.risk_assessment.risk_score;
-            const riskLevel = report.risk_assessment.overall_risk;
-            
-            let emoji = '🟢';
-            
-            if (riskScore >= 100) {
-              emoji = '🔴';
-            } else if (riskScore >= 50) {
-              emoji = '🟠';
-            }
-            
-            let comment = `## ${emoji} Security Scan Results\n\n`;
-            comment += `**Risk Level:** ${riskLevel}\n`;
-            comment += `**Risk Score:** ${riskScore}/1000\n`;
-            comment += `**Threats Found:** ${threatCount}\n\n`;
-            
-            if (threatCount > 0) {
-              comment += `### Detected Threats:\n\n`;
+            try {
+              const report = JSON.parse(fs.readFileSync('security-report.json', 'utf8'));
               
-              const categories = {};
-              report.threats.forEach(threat => {
-                if (!categories[threat.category]) {
-                  categories[threat.category] = [];
-                }
-                categories[threat.category].push(threat);
-              });
+              const threatCount = report.threats.length;
+              const riskScore = report.risk_assessment.risk_score;
+              const riskLevel = report.risk_assessment.overall_risk;
               
-              for (const [category, threats] of Object.entries(categories)) {
-                comment += `#### ${threats[0].severity} ${category}\n`;
-                threats.slice(0, 5).forEach(threat => {
-                  comment += `- **${threat.threat_name}** in \`${threat.file}:${threat.line}\`\n`;
-                  comment += `  ${threat.description}\n`;
-                });
-                if (threats.length > 5) {
-                  comment += `- ... and ${threats.length - 5} more threat(s)\n`;
-                }
+              let emoji = '🟢';
+              
+              if (riskScore >= 100) {
+                emoji = '🔴';
+              } else if (riskScore >= 50) {
+                emoji = '🟠';
               }
-            } else {
-              comment += `✅ No security threats detected!\n`;
+              
+              let comment = `## ${emoji} Security Scan Results\n\n`;
+              comment += `**Risk Level:** ${riskLevel}\n`;
+              comment += `**Risk Score:** ${riskScore}/1000\n`;
+              comment += `**Threats Found:** ${threatCount}\n\n`;
+              
+              if (threatCount > 0) {
+                comment += `### Detected Threats:\n\n`;
+                
+                const categories = {};
+                report.threats.forEach(threat => {
+                  if (!categories[threat.category]) {
+                    categories[threat.category] = [];
+                  }
+                  categories[threat.category].push(threat);
+                });
+                
+                for (const [category, threats] of Object.entries(categories)) {
+                  comment += `#### ${threats[0].severity} ${category}\n`;
+                  threats.slice(0, 5).forEach(threat => {
+                    comment += `- **${threat.threat_name}** in \`${threat.file}:${threat.line}\`\n`;
+                    comment += `  ${threat.description}\n`;
+                  });
+                  if (threats.length > 5) {
+                    comment += `- ... and ${threats.length - 5} more threat(s)\n`;
+                  }
+                }
+              } else {
+                comment += `✅ No security threats detected!\n`;
+              }
+              
+              comment += `\n**Recommendation:** ${report.risk_assessment.recommendation}\n`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.log('Could not post comment:', error);
             }
-            
-            comment += `\n**Recommendation:** ${report.risk_assessment.recommendation}\n`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
 
       - name: Set Status Check - Success
         if: steps.scan.outputs.critical_threats == 'false'
@@ -183,6 +186,6 @@ jobs:
           echo "- **Status**: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Code Quality**: ${{ needs.scan-quality.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "## Artifacts Generated" >> $GITHUB_STEP_SUMMARY
           echo "- Security Report (JSON)" >> $GITHUB_STEP_SUMMARY
           echo "- Security Report (HTML)" >> $GITHUB_STEP_SUMMARY
