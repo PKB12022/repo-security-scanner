@@ -60,7 +60,7 @@ const moduleName = process.argv[2];
 const module = await import(moduleName);
 
 
-"""
+
 
 # =========================
 # EXAMPLE 4: Data Collection - Keystroke Logging
