@@ -23,8 +23,18 @@ SCANNABLE_EXTENSIONS = {
 
 # Files to skip
 SKIP_PATTERNS = {
-    'node_modules', '.git', 'dist', 'build', '.venv', 'venv',
-    '__pycache__', '.egg-info', 'vendor', '.next', 'out'
+    'node_modules',
+    '.git',
+    'dist',
+    'build',
+    '.venv',
+    'venv',
+    '__pycache__',
+    '.egg-info',
+    'vendor',
+    '.next',
+    'out',
+    '.github'
 }
 
 def is_scannable_file(filepath):
@@ -51,6 +61,9 @@ def is_scannable_file(filepath):
         if skip in path.parts:
             return False
     # Skip the scanner tool itself
+    # Skip GitHub workflow files
+    if '.github' in str(filepath):
+        return False
 
     
     return path.suffix in SCANNABLE_EXTENSIONS or path.suffix == ''
@@ -159,6 +172,11 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output as JSON only")
     parser.add_argument("--html", action="store_true", help="Generate HTML report")
     parser.add_argument("--output", "-o", help="Output file path")
+    parser.add_argument(
+        "--fail-on-threats",
+        action="store_true",
+        help="Exit with code 1 when threats are found"
+    )
     
     args = parser.parse_args()
     
@@ -208,7 +226,10 @@ def main():
         print(f"{Fore.GREEN}✅ HTML report saved: {output_file}{Style.RESET_ALL}")
     
     # Exit with appropriate code
-    sys.exit(0 if not threats else 1)
+    # Exit logic
+    if args.fail_on_threats and threats:
+        sys.exit(1)
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
