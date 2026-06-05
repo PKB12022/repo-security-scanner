@@ -1,3 +1,4 @@
+![Security Scan](https://github.com/PKB12022/repo-security-scanner/actions/workflows/security-scan.yml/badge.svg)
 # Repository Security Scanner 🔍
 
 A comprehensive security scanner that detects suspicious and malicious code patterns in downloaded GitHub repositories, protecting users from privacy violations and security threats.
