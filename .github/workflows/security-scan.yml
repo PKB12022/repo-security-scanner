@@ -1,0 +1,172 @@
+name: Repository Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Run security scanner
+      - name: Run Repository Security Scanner
+        id: scan
+        run: |
+          python scanner.py . --json --output security-report.json
+          
+          # Check if threats were detected
+          if grep -q "CRITICAL" security-report.json; then
+            echo "critical_threats=true" >> $GITHUB_OUTPUT
+          else
+            echo "critical_threats=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Extract threat count
+          THREAT_COUNT=$(grep -o '"threats_found": [0-9]*' security-report.json | grep -o '[0-9]*')
+          echo "threat_count=$THREAT_COUNT" >> $GITHUB_OUTPUT
+
+      # Step 5: Generate HTML report
+      - name: Generate HTML Report
+        run: |
+          python scanner.py . --html --output security-report.html
+
+      # Step 6: Upload security report as artifact
+      - name: Upload Security Report (JSON)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report-json
+          path: security-report.json
+          retention-days: 90
+
+      - name: Upload Security Report (HTML)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report-html
+          path: security-report.html
+          retention-days: 90
+
+      # Step 7: Comment on Pull Request with results
+      - name: Comment on Pull Request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('security-report.json', 'utf8'));
+            
+            const threatCount = report.threats.length;
+            const riskScore = report.risk_assessment.risk_score;
+            const riskLevel = report.risk_assessment.overall_risk;
+            
+            let emoji = '🟢';
+            
+            if (riskScore >= 100) {
+              emoji = '🔴';
+            } else if (riskScore >= 50) {
+              emoji = '🟠';
+            }
+            
+            let comment = `## ${emoji} Security Scan Results\n\n`;
+            comment += `**Risk Level:** ${riskLevel}\n`;
+            comment += `**Risk Score:** ${riskScore}/1000\n`;
+            comment += `**Threats Found:** ${threatCount}\n\n`;
+            
+            if (threatCount > 0) {
+              comment += `### Detected Threats:\n\n`;
+              
+              const categories = {};
+              report.threats.forEach(threat => {
+                if (!categories[threat.category]) {
+                  categories[threat.category] = [];
+                }
+                categories[threat.category].push(threat);
+              });
+              
+              for (const [category, threats] of Object.entries(categories)) {
+                comment += `#### ${threats[0].severity} ${category}\n`;
+                threats.slice(0, 5).forEach(threat => {
+                  comment += `- **${threat.threat_name}** in \`${threat.file}:${threat.line}\`\n`;
+                  comment += `  ${threat.description}\n`;
+                });
+                if (threats.length > 5) {
+                  comment += `- ... and ${threats.length - 5} more threat(s)\n`;
+                }
+              }
+            } else {
+              comment += `✅ No security threats detected!\n`;
+            }
+            
+            comment += `\n**Recommendation:** ${report.risk_assessment.recommendation}\n`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      # Step 8: Status check
+      - name: Set Status Check - Success
+        if: steps.scan.outputs.critical_threats == 'false'
+        run: echo "✅ Security scan passed - No critical threats detected"
+
+      - name: Set Status Check - Failure
+        if: steps.scan.outputs.critical_threats == 'true'
+        run: |
+          echo "❌ Security scan failed - Critical threats detected"
+          exit 1
+
+  # Code quality check
+  scan-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    needs: security-scan
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 pylint
+
+      - name: Lint Python code
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+      - name: Check code complexity
+        run: |
+          pylint scanner.py threat_patterns.py report_generator.py --fail-under=7.0 || true
