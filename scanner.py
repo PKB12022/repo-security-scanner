@@ -58,7 +58,10 @@ def scan_directory(directory):
     all_threats = []
     scanned_files = 0
     
-    print(f"\n{Fore.CYAN}🔍 Scanning repository: {directory}{Style.RESET_ALL}\n")
+    print(f"\n{Fore.CYAN}{'='*100}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}🔍 Repository Security Scanner - Analyzing Repository{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'='*100}{Style.RESET_ALL}")
+    print(f"{Fore.WHITE}📁 Scanning: {directory}{Style.RESET_ALL}\n")
     
     for root, dirs, files in os.walk(directory):
         # Filter skip directories
@@ -88,31 +91,42 @@ def scan_directory(directory):
     return all_threats, scanned_files
 
 def print_threats_summary(threats):
-    """Print threats summary to console"""
+    """Print threats summary to console with detailed information"""
     if not threats:
-        print(f"\n{Fore.GREEN}✅ No threats detected! Repository appears safe.{Style.RESET_ALL}\n")
+        print(f"\n{Fore.GREEN}{'='*100}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}✅ SECURITY STATUS: SAFE{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{'='*100}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}No malicious or suspicious threats detected!{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}Repository appears safe to use.{Style.RESET_ALL}\n")
         return
     
     # Sort by severity
     severity_order = {"🔴 CRITICAL": 0, "🟠 HIGH": 1, "🟡 MEDIUM": 2}
     threats_sorted = sorted(threats, key=lambda x: severity_order.get(x["severity"], 3))
     
-    print(f"\n{Fore.RED}{'='*80}{Style.RESET_ALL}")
-    print(f"{Fore.RED}⚠️  SECURITY THREATS DETECTED - {len(threats)} finding(s){Style.RESET_ALL}")
-    print(f"{Fore.RED}{'='*80}{Style.RESET_ALL}\n")
+    print(f"\n{Fore.RED}{'='*100}{Style.RESET_ALL}")
+    print(f"{Fore.RED}🚨 SECURITY STATUS: CRITICAL - {len(threats)} THREAT(S) DETECTED{Style.RESET_ALL}")
+    print(f"{Fore.RED}{'='*100}{Style.RESET_ALL}\n")
     
     current_category = None
+    threat_number = 1
+    
     for threat in threats_sorted:
         if threat["category"] != current_category:
             current_category = threat["category"]
-            print(f"\n{Fore.RED}{threat['severity']} {threat['category']}{Style.RESET_ALL}")
-            print("-" * 80)
+            print(f"\n{Fore.RED}{'─'*100}{Style.RESET_ALL}")
+            print(f"{Fore.RED}{threat['severity']} │ {threat['category'].upper()}{Style.RESET_ALL}")
+            print(f"{Fore.RED}{'─'*100}{Style.RESET_ALL}")
         
-        print(f"\n📍 File: {Fore.CYAN}{threat['file']}{Style.RESET_ALL}:{threat['line']}")
-        print(f"🔴 Type: {threat['threat_name']}")
-        print(f"📝 Description: {threat['description']}")
-        print(f"💻 Code: {Fore.YELLOW}{threat['line_content'][:100]}{Style.RESET_ALL}")
-        print(f"🎯 Matched: {Fore.RED}{threat['matched_text'][:80]}{Style.RESET_ALL}")
+        print(f"\n{Fore.WHITE}[THREAT #{threat_number}]{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}📍 Location:{Style.RESET_ALL} {Fore.YELLOW}{threat['file']}{Style.RESET_ALL}:{Fore.YELLOW}{threat['line']}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}🔴 Type:{Style.RESET_ALL} {threat['threat_name']}")
+        print(f"{Fore.CYAN}📝 What it does:{Style.RESET_ALL} {threat['description']}")
+        print(f"{Fore.CYAN}💻 Code detected:{Style.RESET_ALL}")
+        print(f"    {Fore.RED}{threat['line_content'][:120]}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}🎯 Pattern matched:{Style.RESET_ALL} {Fore.RED}{threat['matched_text'][:100]}{Style.RESET_ALL}")
+        
+        threat_number += 1
 
 def calculate_risk_score(threats):
     """Calculate overall risk score"""
@@ -153,14 +167,28 @@ def main():
     # Scan the directory
     threats, scanned_files = scan_directory(args.path)
     
-    print(f"\n{Fore.CYAN}📊 Scanned {scanned_files} files{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'─'*100}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}📊 Scan Complete: {scanned_files} files scanned{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'─'*100}{Style.RESET_ALL}")
     
     # Print summary
     print_threats_summary(threats)
     
     # Calculate risk score
     risk_level, score = calculate_risk_score(threats)
-    print(f"\n{Fore.CYAN}📈 Risk Score: {risk_level} ({score}){Style.RESET_ALL}\n")
+    
+    print(f"\n{Fore.CYAN}{'='*100}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}📈 FINAL RISK ASSESSMENT{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'='*100}{Style.RESET_ALL}")
+    
+    if score >= 100:
+        print(f"{Fore.RED}{risk_level} ({score}/1000){Style.RESET_ALL}")
+        print(f"{Fore.RED}⛔ DO NOT USE THIS REPOSITORY - Contains serious security threats{Style.RESET_ALL}")
+    else:
+        print(f"{Fore.GREEN}{risk_level} ({score}/1000){Style.RESET_ALL}")
+        print(f"{Fore.GREEN}✅ SAFE - Repository appears secure to use{Style.RESET_ALL}")
+    
+    print(f"{Fore.CYAN}{'='*100}{Style.RESET_ALL}\n")
     
     # Generate reports
     if args.json or args.output:
