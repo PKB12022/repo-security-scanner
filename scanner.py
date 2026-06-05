@@ -50,6 +50,9 @@ def is_scannable_file(filepath):
     for skip in SKIP_PATTERNS:
         if skip in path.parts:
             return False
+    # Skip the scanner tool itself
+    if any(skip in str(filepath) for skip in ['scanner.py', 'threat_patterns.py', 'report_generator.py', '.github']):
+        return False
     
     return path.suffix in SCANNABLE_EXTENSIONS or path.suffix == ''
 
